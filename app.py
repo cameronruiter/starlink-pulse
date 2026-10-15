@@ -20,6 +20,7 @@ from scope import is_in_scope
 DATA_URL = "https://raw.githubusercontent.com/cameronruiter/starlink-pulse/main/data/posts.csv"
 LOCAL_FILE = Path(__file__).parent / "data" / "posts.csv"
 MIN_ITEMS = 5           # periods with fewer posts than this are too thin to judge
+TIMEZONE = "Europe/Amsterdam"   # show all times in Dutch time (the data itself is stored in UTC)
 
 COLORS = {"negative": "#e34948", "neutral": "#9c9a92", "positive": "#2a78d6"}
 ORDER = ["negative", "neutral", "positive"]
@@ -35,8 +36,9 @@ def load_data() -> tuple[pd.DataFrame, str]:
         if not LOCAL_FILE.exists():
             return pd.DataFrame(), "no data yet"
         df, source = pd.read_csv(LOCAL_FILE, dtype={"id": str}), "local file"
-    df["created_at"] = pd.to_datetime(df["created_at"], utc=True)
-    df["collected_at"] = pd.to_datetime(df["collected_at"], utc=True)
+    # stored in UTC; converted to Dutch time for display
+    for col in ("created_at", "collected_at"):
+        df[col] = pd.to_datetime(df[col], utc=True).dt.tz_convert(TIMEZONE).dt.tz_localize(None)
     # recompute from the text, so improvements to scope.py also apply to older posts
     df["in_scope"] = df["text"].map(is_in_scope)
     return df, source
@@ -95,7 +97,7 @@ k1, k2, k3, k4 = st.columns(4)
 k1.metric("Posts in view", f"{len(view):,}")
 k2.metric("Negative", f"{(view['label'] == 'negative').mean():.0%}")
 k3.metric("Positive", f"{(view['label'] == 'positive').mean():.0%}")
-k4.metric("Last collected", last_run.strftime("%d %b %H:%M UTC"))
+k4.metric("Last collected", last_run.strftime("%d %b %H:%M"), help="Dutch time")
 
 # ---------------------------------------------------------------- per-period table
 per = (view.groupby("period")
@@ -123,7 +125,7 @@ per["label"] = per["period"].dt.strftime(fmt)
 st.subheader(f"Share of negative and positive posts per {step}")
 st.caption(f"Each dot is the share of posts in that period. Faded dots: fewer than {MIN_ITEMS} posts, "
            "too few to judge. A red ring marks an unusual rise in negative posts. "
-           "The rest of the posts are neutral.")
+           "The rest of the posts are neutral. All times are Dutch time.")
 
 shares = per.melt(id_vars=["period", "label", "posts", "enough", "unusual", "negative", "positive"],
                   value_vars=["neg_share", "pos_share"], var_name="series", value_name="share")
@@ -191,7 +193,7 @@ posts["confidence"] = posts[["neg", "neu", "pos"]].max(axis=1) * 100
 posts = posts.sort_values("score")[["created_at", "label", "confidence", "text"]]
 posts["created_at"] = posts["created_at"].dt.strftime("%d %b %H:%M")
 st.dataframe(
-    posts.rename(columns={"created_at": "Posted (UTC)", "label": "Model says",
+    posts.rename(columns={"created_at": "Posted (Dutch time)", "label": "Model says",
                           "confidence": "Model confidence", "text": "Post"}),
     hide_index=True, width="stretch",
     column_config={"Model confidence": st.column_config.ProgressColumn(format="%.0f%%", min_value=0, max_value=100),
