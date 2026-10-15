@@ -22,6 +22,8 @@ from pathlib import Path
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
+from scope import is_in_scope
+
 ROOT = Path(__file__).parent
 DATA = ROOT / "data" / "posts.csv"
 SHEET = ROOT / "test" / "label_sheet.csv"
@@ -38,7 +40,7 @@ def sample() -> None:
             print(f"{SHEET} already has {done} labels; not overwriting it. Delete it first to start over.")
             sys.exit(1)
     posts = pd.read_csv(DATA, dtype={"id": str})
-    posts = posts[posts["in_scope"].astype(str).str.lower() == "true"]
+    posts = posts[posts["text"].map(is_in_scope)]
     picked = posts.sample(n=min(N_ITEMS, len(posts)), random_state=42)
     sheet = picked[["id", "created_at", "text"]].copy()
     sheet["my_label"] = ""

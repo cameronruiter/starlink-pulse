@@ -14,6 +14,8 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from scope import is_in_scope
+
 # The dashboard reads the data file straight from GitHub, so it is always up to date.
 DATA_URL = "https://raw.githubusercontent.com/cameronruiter/starlink-pulse/main/data/posts.csv"
 LOCAL_FILE = Path(__file__).parent / "data" / "posts.csv"
@@ -35,7 +37,8 @@ def load_data() -> tuple[pd.DataFrame, str]:
         df, source = pd.read_csv(LOCAL_FILE, dtype={"id": str}), "local file"
     df["created_at"] = pd.to_datetime(df["created_at"], utc=True)
     df["collected_at"] = pd.to_datetime(df["collected_at"], utc=True)
-    df["in_scope"] = df["in_scope"].astype(str).str.lower().eq("true")
+    # recompute from the text, so improvements to scope.py also apply to older posts
+    df["in_scope"] = df["text"].map(is_in_scope)
     return df, source
 
 
@@ -43,7 +46,7 @@ df, source = load_data()
 
 # ---------------------------------------------------------------- header
 st.title("📡 Starlink Pulse")
-st.caption("How people on Bluesky talk about their Starlink connection, hour by hour. "
+st.caption("How people on Bluesky talk about their Starlink connection, over time. "
            "For a municipal broadband officer preparing advice on a Starlink pilot or subsidy.")
 
 st.warning(
@@ -60,13 +63,14 @@ if df.empty:
     st.stop()
 
 # ---------------------------------------------------------------- filters
-f1, f2, f3 = st.columns([1, 1, 2])
+f1, f2, f3 = st.columns([1.6, 1.2, 1.2])
 with f1:
-    step = st.radio("Group per", ["hour", "day"], horizontal=True)
+    step = st.radio("Group per", ["hour", "3 hours", "6 hours", "day"], index=1, horizontal=True,
+                    help="Bigger groups contain more posts per dot, so the line is steadier and easier to trust.")
 with f2:
     only_scope = st.toggle("Only posts about the connection", value=True,
-                           help="Keeps posts that mention things like internet, outage, speed, "
-                                "dish or rural, and leaves out posts about rockets and launches.")
+                           help="Keeps posts that mention things like internet, outage, speed, dish or rural, "
+                                "and leaves out posts about politics, war, Musk and rocket launches.")
 with f3:
     include_backfill = st.toggle("Include the catch-up run", value=True,
                                  help="On the first run the tool collected posts from the 48 hours "
@@ -81,7 +85,8 @@ if view.empty:
     st.info("No posts match these filters yet.")
     st.stop()
 
-freq = "h" if step == "hour" else "D"
+freq = {"hour": "h", "3 hours": "3h", "6 hours": "6h", "day": "D"}[step]
+x_format = "%d %b" if step == "day" else "%d %b %H:%M"
 view["period"] = view["created_at"].dt.floor(freq)
 
 # ---------------------------------------------------------------- headline numbers
@@ -100,6 +105,7 @@ per = (view.groupby("period")
                 positive=("label", lambda s: (s == "positive").sum()))
            .reset_index())
 per["neg_share"] = per["negative"] / per["posts"]
+per["pos_share"] = per["positive"] / per["posts"]
 per["enough"] = per["posts"] >= MIN_ITEMS
 
 # A period is "unusual" when its share of negative posts is clearly above normal:
@@ -110,41 +116,46 @@ if len(solid) >= 4:
 else:
     threshold = 1.01   # not enough history to call anything unusual yet
 per["unusual"] = per["enough"] & (per["neg_share"] > threshold)
-fmt = "%d %b %H:00" if step == "hour" else "%a %d %b"
+fmt = "%a %d %b" if step == "day" else "%d %b %H:00"
 per["label"] = per["period"].dt.strftime(fmt)
 
-# ---------------------------------------------------------------- chart 1: share negative
-st.subheader(f"Share of negative posts per {step}")
-st.caption(f"Dots for periods with fewer than {MIN_ITEMS} posts are faded: too few to judge. "
-           "Red rings mark an unusual rise in negative posts.")
+# ---------------------------------------------------------------- chart 1: the mood
+st.subheader(f"Share of negative and positive posts per {step}")
+st.caption(f"Each dot is the share of posts in that period. Faded dots: fewer than {MIN_ITEMS} posts, "
+           "too few to judge. A red ring marks an unusual rise in negative posts. "
+           "The rest of the posts are neutral.")
 
-base = alt.Chart(per).encode(
-    x=alt.X("period:T", title=None, axis=alt.Axis(format="%d %b %H:%M" if step == "hour" else "%d %b")),
-)
+shares = per.melt(id_vars=["period", "label", "posts", "enough", "unusual", "negative", "positive"],
+                  value_vars=["neg_share", "pos_share"], var_name="series", value_name="share")
+shares["tone"] = shares["series"].map({"neg_share": "negative", "pos_share": "positive"})
+tone_scale = alt.Scale(domain=["negative", "positive"], range=[COLORS["negative"], COLORS["positive"]])
 tooltip = [alt.Tooltip("label:N", title="Period"),
            alt.Tooltip("posts:Q", title="Posts"),
-           alt.Tooltip("neg_share:Q", title="Negative", format=".0%"),
+           alt.Tooltip("tone:N", title="Tone"),
+           alt.Tooltip("share:Q", title="Share", format=".0%"),
            alt.Tooltip("negative:Q", title="Negative posts"),
            alt.Tooltip("positive:Q", title="Positive posts")]
-# the line only connects periods with enough posts, so one lonely post can't draw a 100% spike
-line = base.transform_filter("datum.enough").mark_line(color=COLORS["negative"], strokeWidth=2).encode(
-    y=alt.Y("neg_share:Q", title="Negative posts", axis=alt.Axis(format="%"),
-            scale=alt.Scale(domain=[0, 1])))
-dots = base.mark_circle(size=70, color=COLORS["negative"]).encode(
-    y="neg_share:Q",
-    opacity=alt.condition("datum.enough", alt.value(1), alt.value(0.25)),
-    tooltip=tooltip)
-rings = base.transform_filter("datum.unusual").mark_point(
-    size=320, color=COLORS["negative"], strokeWidth=2.5, filled=False).encode(y="neg_share:Q", tooltip=tooltip)
-st.altair_chart((line + dots + rings).properties(height=280), width="stretch")
+base = alt.Chart(shares).encode(
+    x=alt.X("period:T", title=None, axis=alt.Axis(format=x_format)),
+    y=alt.Y("share:Q", title="Share of posts", axis=alt.Axis(format="%"), scale=alt.Scale(domain=[0, 1])),
+    color=alt.Color("tone:N", scale=tone_scale, legend=alt.Legend(title=None, orient="top")),
+)
+# lines only connect periods with enough posts, so one lonely post can't draw a 100% spike
+lines = base.transform_filter("datum.enough").mark_line(strokeWidth=2)
+dots = base.mark_circle(size=70).encode(
+    opacity=alt.condition("datum.enough", alt.value(1), alt.value(0.25)), tooltip=tooltip)
+rings = base.transform_filter("datum.unusual && datum.tone == 'negative'").mark_point(
+    size=320, strokeWidth=2.5, filled=False).encode(tooltip=tooltip)
+st.altair_chart((lines + dots + rings).properties(height=300), width="stretch")
 
 # ---------------------------------------------------------------- chart 2: volume & mix
 st.subheader(f"Number of posts per {step}, by tone")
 st.caption("Always read the share above together with how many posts it is based on.")
 long = per.melt(id_vars=["period", "label", "posts"], value_vars=ORDER,
                 var_name="tone", value_name="count")
-bars = alt.Chart(long).mark_bar(cornerRadiusTopLeft=2, cornerRadiusTopRight=2).encode(
-    x=alt.X("period:T", title=None, axis=alt.Axis(format="%d %b %H:%M" if step == "hour" else "%d %b")),
+bar_size = {"hour": 8, "3 hours": 24, "6 hours": 40, "day": 80}[step]
+bars = alt.Chart(long).mark_bar(size=bar_size, cornerRadiusTopLeft=2, cornerRadiusTopRight=2).encode(
+    x=alt.X("period:T", title=None, axis=alt.Axis(format=x_format)),
     y=alt.Y("count:Q", title="Posts", stack=True),
     color=alt.Color("tone:N", scale=alt.Scale(domain=ORDER, range=[COLORS[t] for t in ORDER]),
                     legend=alt.Legend(title=None, orient="top")),
@@ -169,20 +180,21 @@ else:
 def describe(p):
     row = per[per["period"] == p].iloc[0]
     flag = "  ⚠️ unusual" if row["unusual"] else ""
-    return f"{row['label']}  ·  {row['posts']} posts  ·  {row['neg_share']:.0%} negative{flag}"
+    return (f"{row['label']}  ·  {row['posts']} posts  ·  {row['neg_share']:.0%} negative  ·  "
+            f"{row['pos_share']:.0%} positive{flag}")
 
 
 periods = list(options["period"])
 chosen = st.selectbox("Pick a period", periods, index=periods.index(default_period), format_func=describe)
 posts = view[view["period"] == chosen].copy()
-posts["confidence"] = posts[["neg", "neu", "pos"]].max(axis=1)
+posts["confidence"] = posts[["neg", "neu", "pos"]].max(axis=1) * 100
 posts = posts.sort_values("score")[["created_at", "label", "confidence", "text"]]
 posts["created_at"] = posts["created_at"].dt.strftime("%d %b %H:%M")
 st.dataframe(
     posts.rename(columns={"created_at": "Posted (UTC)", "label": "Model says",
                           "confidence": "Model confidence", "text": "Post"}),
     hide_index=True, width="stretch",
-    column_config={"Model confidence": st.column_config.ProgressColumn(format="%.0f%%", min_value=0, max_value=1),
+    column_config={"Model confidence": st.column_config.ProgressColumn(format="%.0f%%", min_value=0, max_value=100),
                    "Post": st.column_config.TextColumn(width="large")},
 )
 

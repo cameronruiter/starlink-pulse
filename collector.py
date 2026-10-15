@@ -40,19 +40,8 @@ MAX_PAGES_LIVE = 10                 # 10 pages x 100 posts per live run is plent
 MAX_PAGES_BACKFILL = 60             # safety cap for the one-off catch-up run
 MIN_TEXT_LENGTH = 15                # skip posts that are basically empty after cleaning
 
-# A post is "in scope" when it talks about the connection experience, not just
-# launches, rockets or Elon Musk. The dashboard shows in-scope posts by default.
-IN_SCOPE_WORDS = [
-    "internet", "connection", "connected", "connectivity", "online", "offline",
-    "outage", "outages", "down", "dropped", "dropping", "disconnect", "disconnected",
-    "speed", "speeds", "slow", "mbps", "gbps", "latency", "ping", "lag", "buffering",
-    "upload", "download", "bandwidth", "signal", "coverage", "service",
-    "dish", "dishy", "router", "wifi", "wi-fi", "install", "installed", "installation",
-    "obstruction", "obstructions", "roaming", "rural", "broadband",
-    "subscription", "price", "bill", "data cap", "reliable", "reliability",
-    "unreliable", "not working", "customer support",
-]
-_IN_SCOPE_RE = re.compile(r"\b(" + "|".join(re.escape(w) for w in IN_SCOPE_WORDS) + r")\b", re.I)
+# Which posts count as "about the connection" lives in scope.py (shared with the dashboard).
+from scope import is_in_scope
 
 COLUMNS = ["id", "created_at", "collected_at", "collection", "lang", "in_scope",
            "text", "label", "neg", "neu", "pos", "score", "model"]
@@ -131,7 +120,7 @@ def fetch_new_posts(token: str, seen_ids: set, stop_before: datetime, max_pages:
                 "created_at": created.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "lang": ",".join(record.get("langs", []) or []),
                 "text": text,
-                "in_scope": bool(_IN_SCOPE_RE.search(text)),
+                "in_scope": is_in_scope(text),
             })
         cursor = page.get("cursor")
         if reached_old or not cursor:
