@@ -64,7 +64,7 @@ The stream excludes or underrepresents people who do not use Bluesky, do not pos
 
 **Why not Reddit:** We first planned to use r/Starlink. Reddit's [Responsible Builder Policy](https://support.reddithelp.com/hc/en-us/articles/42728983564564-Responsible-Builder-Policy) states: *"You must request access and get explicit approval before accessing any Reddit data through our API."* Approval was not possible within the deadline, and scraping Reddit without approval would break its terms, so we switched to Bluesky, whose public API is open to any account holder.
 
-**Terms we follow:** Bluesky's [Terms of Service](https://bsky.social/about/support/tos) and [Developer Guidelines](https://bsky.network/docs/developer-guidelines/). We only read public posts, search at most once every 30 minutes (up to 10 pages of 100 posts per run), and never post, like or follow.
+**Terms we follow:** Bluesky's [Terms of Service](https://bsky.social/about/support/tos) and [Developer Guidelines](https://bsky.network/docs/developer-guidelines/). We only read public posts, search at most once every 30 minutes (normally a few pages of 100 posts per run), and never post, like or follow.
 
 **What we store** (and nothing else): a short hash of the post address (only to avoid duplicates), the time it was posted and collected, whether it was collected live or in the catch-up run, the post text with links removed and @mentions replaced by `@user`, and the model's label and scores. We do **not** store names, handles, profile information or post links.
 
@@ -116,7 +116,9 @@ Our first filter only checked for connection words. After reading the first day 
 | Tone of posts about the connection | 55% negative · 36% neutral · 9% positive |
 | Tone of all Starlink posts | 59% negative · 39% neutral · 2% positive |
 
-**Honest note on the 48-hour requirement:** the tool first ran on 15 October. To have more than a few hours of data, its first run caught up on older posts: it reached back to 14 October 16:27 UTC before hitting its safety limit of 6,000 posts. Every post keeps its real posting time, and the dashboard can show live-collected posts only (switch off "Include the catch-up run"). The collector keeps running after the deadline.
+**Honest note on the 48-hour requirement:** the tool first ran on 15 October. To have more than a few hours of data, its first run caught up on older posts: it reached back to 14 October 16:27 UTC before hitting its safety limit of 6,000 posts. Every post keeps its real posting time, and the dashboard can show live-collected posts only (switch off "Include the catch-up run").
+
+**Honest note on the 30-minute schedule:** the workflow is set to run every 30 minutes (`cron: "*/30 * * * *"` in [collect.yml](https://github.com/cameronruiter/starlink-pulse/blob/main/.github/workflows/collect.yml)). GitHub describes scheduled runs as best effort: they can be delayed or skipped when its servers are busy. On our new repository, GitHub had not started a single scheduled run several hours after the schedule was added, while every run we started from the Actions tab worked (see the run history under [Actions](https://github.com/cameronruiter/starlink-pulse/actions)). So during the hackathon, part of the live data was collected by starting the same workflow by hand. Each run picks up all posts since the previous one (up to 6,000 posts, about a day of Starlink posts, and at most 24 hours back), so no posts are missed between runs. The reliable fix is an external trigger that calls GitHub's workflow-dispatch API every 30 minutes (for example cron-job.org with a token that may only start this workflow).
 
 ## Honest test
 
