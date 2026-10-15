@@ -36,7 +36,7 @@ LANGUAGE = "en"                     # the model is English-only, so we ask Blues
 MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 DATA_FILE = Path(__file__).parent / "data" / "posts.csv"
 PDS = "https://bsky.social/xrpc"    # Bluesky server we log in to
-MAX_PAGES_LIVE = 10                 # 10 pages x 100 posts per live run is plenty for 30 minutes
+MAX_PAGES_LIVE = 60                 # up to 6,000 posts per run, so a run can catch up after a gap of many hours
 MAX_PAGES_BACKFILL = 60             # safety cap for the one-off catch-up run
 MIN_TEXT_LENGTH = 15                # skip posts that are basically empty after cleaning
 
