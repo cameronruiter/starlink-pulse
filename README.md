@@ -104,19 +104,29 @@ Our first filter only checked for connection words. After reading the first day 
 
 ## Data collected
 
-<!-- Update these numbers before submitting: see the dashboard's "How this works" box -->
+<!-- Numbers as of 15 Oct 2026, 17:43 Dutch time. Update with the dashboard's "How this works" box before submitting. -->
+
+![Mood of posts about the connection, per 3 hours](chart_mood.png)
 
 | | |
 |---|---|
-| Posts collected and analysed | 5,797 (as of 15 Oct 2026, 12:30 UTC) |
-| Of which "about the connection" | 155 |
-| Period covered by the posts | 14 Oct 2026 16:27 UTC → 15 Oct 2026 12:30 UTC |
-| Collected live by the running tool | 267 |
+| Posts collected and analysed | 6,542 (as of 15 Oct 2026, 17:43 Dutch time) |
+| Of which "about the connection" | 170 |
+| Period covered by the posts | 14 Oct 2026 18:27 → 15 Oct 2026 17:42 (Dutch time) |
+| Collected live by the running tool | 1,012 (in 4 runs) |
 | Collected by the one-off catch-up run | 5,530 |
 | Tone of posts about the connection | 55% negative · 36% neutral · 9% positive |
-| Tone of all Starlink posts | 59% negative · 39% neutral · 2% positive |
+| Tone of all Starlink posts | 58% negative · 40% neutral · 2% positive |
 
-**Honest note on the 48-hour requirement:** the tool first ran on 15 October. To have more than a few hours of data, its first run caught up on older posts: it reached back to 14 October 16:27 UTC before hitting its safety limit of 6,000 posts. Every post keeps its real posting time, and the dashboard can show live-collected posts only (switch off "Include the catch-up run").
+![Number of posts about the connection per 3 hours, by tone](chart_volume.png)
+
+### Behind a peak and a dip
+
+**Peak: Thursday 12:00–15:00, 73% negative (8 of 11 posts).** Opening this period on the dashboard shows real rural frustration rather than one big outage: *"Starlink is used primarily in rural areas like where I live in West Scotland because other companies left us all high and dry"*, a complaint about a mobile provider's planned Starlink deal, and one genuine outage report: *"Starlink was offline so I couldn't download my ticket."* Two of the 11 posts were off-topic (an arson attack on a ground station, and a politics newsletter) that slipped through our filter. For the broadband officer, this period is a reason to look at rural dependency, not proof of an outage.
+
+**Dip in negativity: Thursday 06:00–09:00, only 35% negative and 20% positive.** The jump in "positive" came from **four near-identical promotional posts** (*"Starlink plays an important role in connectivity… More context via my bio"*), posted within two minutes, probably by one account or a bot. Without them, this period would look like the others. This is exactly the risk the brief warns about: one active account can move the line. It is why the dashboard shows the number of posts behind every point and lets the user read them.
+
+**Honest note on the 48-hour requirement:** the tool first ran on 15 October. To have more than a few hours of data, its first run caught up on older posts: it reached back to 14 October 18:27 (Dutch time) before hitting its safety limit of 6,000 posts. Every post keeps its real posting time, and the dashboard can show live-collected posts only (switch off "Include the catch-up run").
 
 **Honest note on the 30-minute schedule:** the workflow is set to run every 30 minutes (`cron: "*/30 * * * *"` in [collect.yml](https://github.com/cameronruiter/starlink-pulse/blob/main/.github/workflows/collect.yml)). GitHub describes scheduled runs as best effort: they can be delayed or skipped when its servers are busy. On our new repository, GitHub had not started a single scheduled run several hours after the schedule was added, while every run we started from the Actions tab worked (see the run history under [Actions](https://github.com/cameronruiter/starlink-pulse/actions)). So during the hackathon, part of the live data was collected by starting the same workflow by hand. Each run picks up all posts since the previous one (up to 6,000 posts, about a day of Starlink posts, and at most 24 hours back), so no posts are missed between runs. The reliable fix is an external trigger that calls GitHub's workflow-dispatch API every 30 minutes (for example cron-job.org with a token that may only start this workflow).
 
@@ -128,6 +138,8 @@ We labelled **50 randomly chosen posts** from our own stream ourselves (negative
 |---|---|
 | **Transformer** (`twitter-roberta-base-sentiment-latest`) | **66%** (33 / 50) |
 | **Word-list baseline** (VADER) | **40%** (20 / 50) |
+
+![How often each method agreed with our own labels](chart_test.png)
 
 **Where the transformer goes wrong** (rows = our label, columns = model):
 
