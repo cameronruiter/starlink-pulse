@@ -106,7 +106,7 @@ Our first filter only checked for connection words. After reading the first day 
 
 <!-- Numbers as of 15 Oct 2026, 17:43 Dutch time. Update with the dashboard's "How this works" box before submitting. -->
 
-![Mood of posts about the connection, per 3 hours](chart_mood.png)
+![Mood of posts about the connection, per 3 hours](charts/chart_mood.png)
 
 | | |
 |---|---|
@@ -118,7 +118,7 @@ Our first filter only checked for connection words. After reading the first day 
 | Tone of posts about the connection | 55% negative · 36% neutral · 9% positive |
 | Tone of all Starlink posts | 58% negative · 40% neutral · 2% positive |
 
-![Number of posts about the connection per 3 hours, by tone](chart_volume.png)
+![Number of posts about the connection per 3 hours, by tone](charts/chart_volume.png)
 
 ### Behind a peak and a dip
 
@@ -139,7 +139,7 @@ We labelled **50 randomly chosen posts** from our own stream ourselves (negative
 | **Transformer** (`twitter-roberta-base-sentiment-latest`) | **66%** (33 / 50) |
 | **Word-list baseline** (VADER) | **40%** (20 / 50) |
 
-![How often each method agreed with our own labels](chart_test.png)
+![How often each method agreed with our own labels](charts/chart_test.png)
 
 **Where the transformer goes wrong** (rows = our label, columns = model):
 
