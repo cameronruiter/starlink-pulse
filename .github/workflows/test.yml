@@ -1,0 +1,35 @@
+name: Honest test
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: "sample = pick 50 posts to label, score = compare your labels with the models"
+        required: true
+        default: sample
+        type: choice
+        options: [sample, score]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pandas vaderSentiment tabulate
+      - run: python evaluate.py ${{ github.event.inputs.step }}
+      - name: Save results to the repo
+        run: |
+          git config user.name "starlink-pulse-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add test/
+          git diff --staged --quiet || (git commit -m "test: ${{ github.event.inputs.step }}" && git pull --rebase && git push)
