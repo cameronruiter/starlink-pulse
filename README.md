@@ -21,7 +21,7 @@
 | Honest test: full table (50 posts, our label, both models) | [test/test_table.csv](https://github.com/cameronruiter/starlink-pulse/blob/main/test/test_table.csv) |
 | Honest test: our 50 labels | [test/label_sheet.csv](https://github.com/cameronruiter/starlink-pulse/blob/main/test/label_sheet.csv) |
 | Test script | [evaluate.py](https://github.com/cameronruiter/starlink-pulse/blob/main/evaluate.py) |
-| Sentiment model card | [Hugging Face: cardiffnlp/twitter-roberta-base-sentiment-latest](https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest) |
+| Sentiment model card | [Hugging Face: cardiffnlp/twitter-roberta-base-sentiment-latest](https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest) |<img width="1198" height="637" alt="image" src="https://github.com/user-attachments/assets/b768ca62-2732-4368-ade9-f42feaa533dd" />
 | Word-list baseline | [VADER on GitHub](https://github.com/cjhutto/vaderSentiment) |
 
 ## What Starlink Pulse does
